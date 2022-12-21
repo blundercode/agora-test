@@ -72,13 +72,14 @@
           v-if="playList.find(e => e.uid === user_id)"
           v-player="playList.find(e => e.uid === user_id)"
           class="player-vision"
+          v-bind:id="'video-player-id-' + user_id"
           v-show="!streamFallbackList.includes(user_id)"
         ></div>
         <div class="ban">
-          <pin-button
-            :couldHover="false"
-            v-if="pined && user_id === pinedUid"
-          />
+          <pin-button :couldHover="false" v-if="pined && user_id === pinedUid" />
+          <button style="background-color: red;" @click="unsubscribeFromUserMedia(user_id, 'audio')">Unsub 2 Audio</button>
+          <button style="background-color: green;" @click="subscribeToUserMedia(user_id, 'audio')">Sub 2 Audio</button>
+          <mute-user-button :couldHover="false" />
           <voice-dot
             :level="
               audioStatusObj[user_id || uid] &&
@@ -95,6 +96,8 @@
             {{ user_id || "you"
             }}<span v-if="user_id === uid && inMeeting"> ( you ) </span>
           </p>
+          <button style="background-color: red;" @click="unsubscribeFromUserMedia(user_id, 'video')">Unsub 2 Video</button>
+          <button style="background-color: green;" @click="subscribeToUserMedia(user_id, 'video')">Sub 2 Video</button>
         </div>
         <avatar-audio
           avatar="../assets/yonghu.svg"
@@ -199,6 +202,7 @@ import VideoButton from "./buttons/video-button";
 import VoiceDot from "./voice-dot/main";
 import AvatarAudio from "./avatar-audio/main";
 import PinButton from "./pin-button/main";
+import MuteUserButton from "./mute-user-button/main";
 
 export default {
   name: "Meet",
@@ -209,7 +213,8 @@ export default {
     VideoButton,
     VoiceDot,
     AvatarAudio,
-    PinButton
+    PinButton,
+    MuteUserButton
   },
   props: {
     channel: {
@@ -366,6 +371,32 @@ export default {
       window._sClient = this.$refs?.screenAr?.getClient();
       // client.setStreamFallbackOption()
     },
+    async subscribeToUserMedia(userId, media) {
+      this.remoteUsers.forEach(user => {
+        if (user.uid === userId) {
+          if (media == "video") {
+            console.log(user)
+            console.log("subscribe video success");
+            let playerID = "video-player-id-" + user.uid;
+            console.log(playerID);
+            user.videoTrack.play(playerID);
+          }
+          if (media == "audio") {
+            console.log(user)
+            console.log("subscribe audio success");
+            user.audioTrack.play();
+          }
+          _client.subscribe(user, media)
+        }
+      });
+    },
+    unsubscribeFromUserMedia(userId, media) {
+      this.remoteUsers.forEach(user => {
+        if (user.uid === userId) {
+          _client.unsubscribe(user, media)
+        }
+      });
+    },
     handleMute() {
       this.mute = !this.mute;
       this.$message(`Microphone Turned ${this.mute ? "OFF" : "ON"}`);
@@ -491,6 +522,7 @@ export default {
       const audioReceiver = this?.$refs?.audioReceiver;
       const callback = () => {
         this.remoteVolumeLevelList = audioReceiver?.getVolumeLevel();
+        console.log(remoteVolumeLevelList)
         id = window.requestAnimationFrame(callback);
       };
       id = window.requestAnimationFrame(callback);
